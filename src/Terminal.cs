@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Renderer {
+namespace Rendering {
 
 public static class Terminal {
 

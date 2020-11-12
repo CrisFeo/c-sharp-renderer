@@ -1,6 +1,6 @@
 using System;
 
-namespace Renderer {
+namespace Rendering {
 
 public struct Vec2 {
   public static Vec2 zero = new Vec2(0, 0);

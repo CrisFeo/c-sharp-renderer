@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Renderer {
+namespace Rendering {
 
 public struct SparseSet<T> {
   public List<int> forwardLookup;

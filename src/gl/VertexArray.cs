@@ -6,7 +6,7 @@ using System.Reflection;
 
 using static OpenGL.Gl;
 
-namespace Renderer {
+namespace Rendering {
 
 public static unsafe partial class GL {
 

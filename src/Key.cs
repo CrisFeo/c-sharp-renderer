@@ -1,6 +1,6 @@
 using System;
 
-namespace Renderer {
+namespace Rendering {
 
 public enum Key {
   Unknown = -1,

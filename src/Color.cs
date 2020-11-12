@@ -1,6 +1,6 @@
 using System;
 
-namespace Renderer {
+namespace Rendering {
 
 public struct Color {
   public GL.Color color;

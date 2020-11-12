@@ -6,7 +6,7 @@ using GLFW;
 
 using static OpenGL.Gl;
 
-namespace Renderer {
+namespace Rendering {
 
 public static class Window {
 
