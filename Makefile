@@ -1,26 +1,27 @@
-MAIN_PROJECT='renderer'
+DOTNET='/mnt/c/Program Files/dotnet/dotnet.exe'
+SRC_FILES=$(shell find src -name *.cs)
 
 .PHONY: clean
 clean:
-	cd $(MAIN_PROJECT) && make $<
+	$(DOTNET) clean -noLogo -clp:NoSummary
 
 .PHONY: build
-build:
-	cd $(MAIN_PROJECT) && make $<
+build: $(SRC_FILES)
+	$(DOTNET) build -noLogo -clp:NoSummary
 
 .PHONY: build-release
-build-release:
-	cd $(MAIN_PROJECT) && make $<
+build-release: $(SRC_FILES)
+	$(DOTNET) build -noLogo -clp:NoSummary -c Release
 
 .PHONY: run
-run:
-	cd $(MAIN_PROJECT) && make $<
+run: $(SRC_FILES)
+	$(DOTNET) run
 
 .PHONY: run-release
-run-release:
-	cd $(MAIN_PROJECT) && make $<
+run-release: $(SRC_FILES)
+	$(DOTNET) run -c Release
 
 .PHONY: run-trace
-run-trace:
-	cd $(MAIN_PROJECT) && make $< < /dev/null > /dev/null &
+run-trace: $(SRC_FILES)
+	$(DOTNET) run -c Release < /dev/null > /dev/null &
 	./scripts/trace

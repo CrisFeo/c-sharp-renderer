@@ -3,16 +3,18 @@
     <OutputType>Library</OutputType>
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Pngcs">
-      <HintPath>lib\pngcs.dll</HintPath>
+      <HintPath>lib/pngcs.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="../vendor/glfw-net/GLFW.NET/GLFW.NET.csproj" />
+    <ProjectReference Include="./vendor/glfw-net/GLFW.NET/GLFW.NET.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="src/**/*.cs" />
     <Content Include="dat/**/*.*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
