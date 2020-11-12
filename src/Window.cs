@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.Runtime.InteropServices;
 using GLFW;
@@ -8,15 +9,20 @@ using static OpenGL.Gl;
 
 namespace Rendering {
 
-public static class Window {
+static class Window {
 
   // Internal vars
   ///////////////////////////
 
+  static bool isRunning;
   static GLFW.Window window;
-  static HashSet<Key> input;
-  static (int, int) size;
   static Action<int, int> onResize;
+
+  // Public properites
+  ///////////////////////////
+
+  public static HashSet<Key> Input { get; private set; }
+  public static bool ShouldClose { get; private set; }
 
   // Public methods
   ///////////////////////////
@@ -27,6 +33,8 @@ public static class Window {
     int initialHeight,
     Action<int, int> resizeCallback
   ) {
+    Debug.Assert(!isRunning);
+    isRunning = true;
     Glfw.WindowHint(Hint.ClientApi, ClientApi.OpenGL);
     Glfw.WindowHint(Hint.ContextVersionMajor, 3);
     Glfw.WindowHint(Hint.ContextVersionMinor, 3);
@@ -40,20 +48,19 @@ public static class Window {
       Monitor.None,
       GLFW.Window.None
     );
-    input = new HashSet<Key>();
-    size = (initialWidth, initialHeight);
     onResize = resizeCallback;
+    Input = new HashSet<Key>();
+    ShouldClose = false;
     Glfw.MakeContextCurrent(window);
     Glfw.SwapInterval(1);
     Import(Glfw.GetProcAddress);
     Glfw.SetKeyCallback(window, (wnd, k, sc, s, m) => {
       switch (s) {
-        case InputState.Press:   input.Add((Key)k);    break;
-        case InputState.Release: input.Remove((Key)k); break;
+        case InputState.Press:   Input.Add((Key)k);    break;
+        case InputState.Release: Input.Remove((Key)k); break;
       }
     });
     Glfw.SetWindowSizeCallback(window, (wnd, w, h) => {
-      size = (w, h);
       glViewport(0, 0, w, h);
       onResize(w, h);
     });
@@ -64,30 +71,23 @@ public static class Window {
   }
 
   public static void Shutdown() {
+    Debug.Assert(isRunning);
+    isRunning = false;
     Glfw.Terminate();
     window = default;
-    input = default;
-    size = default;
     onResize = default;
+    Input = default;
+    ShouldClose = default;
   }
 
   public static void Poll() {
+    Debug.Assert(isRunning);
     Glfw.PollEvents();
-  }
-
-  public static bool ShouldClose() {
-    return Glfw.WindowShouldClose(window);
-  }
-
-  public static HashSet<Key> FetchInput() {
-    return input;
-  }
-
-  public static (int, int) Size() {
-    return size;
+    ShouldClose = Glfw.WindowShouldClose(window);
   }
 
   public static void SwapBuffers() {
+    Debug.Assert(isRunning);
     Glfw.SwapBuffers(window);
     glClear(GL_COLOR_BUFFER_BIT);
   }

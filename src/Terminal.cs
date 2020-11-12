@@ -4,7 +4,7 @@ using System.IO;
 
 namespace Rendering {
 
-public static class Terminal {
+public class Terminal : IDisposable {
 
   // Constants
   ///////////////////////////
@@ -38,16 +38,23 @@ public static class Terminal {
   // Internal vars
   ///////////////////////////
 
-  static GL.Texture font;
-  static SparseSet<int, Cell> buffer;
-  static SpriteBatcher batcher;
-  static GL.Program program;
-  static GL.Uniform projection;
+  GL.Texture font;
+  SparseSet<int, Cell> buffer;
+  SpriteBatcher batcher;
+  GL.Program program;
+  GL.Uniform projection;
 
-  // Public methods
+  // Public properties
   ///////////////////////////
 
-  public static void Startup(int cellWidth, int cellHeight, string title) {
+  public HashSet<Key> Input { get => Window.Input; }
+  public bool ShouldClose { get => Window.ShouldClose; }
+  public (int, int) Size { get; private set; }
+
+  // Constructors
+  ///////////////////////////
+
+  public Terminal(int cellWidth, int cellHeight, string title) {
     var pixelWidth = FONT_CHARACTER_SIZE * cellWidth;
     var pixelHeight = FONT_CHARACTER_SIZE * cellHeight;
     Window.Startup(title, pixelWidth, pixelHeight, OnResize);
@@ -62,37 +69,22 @@ public static class Terminal {
     OnResize(pixelWidth, pixelHeight);
   }
 
-  public static void Shutdown() {
+  // Public methods
+  ///////////////////////////
+
+  public void Dispose() {
     Window.Shutdown();
-    font = default;
-    buffer = default;
-    batcher = default;
-    program = default;
-    projection = default;
   }
 
-  public static void Poll() {
+  public void Poll() {
     Window.Poll();
   }
 
-  public static bool ShouldClose() {
-    return Window.ShouldClose();
-  }
-
-  public static HashSet<Key> FetchInput() {
-    return Window.FetchInput();
-  }
-
-  public static (int, int) Size() {
-    var (x, y) = Window.Size();
-    return (x / FONT_CHARACTER_SIZE, y / FONT_CHARACTER_SIZE);
-  }
-
-  public static void Clear() {
+  public void Clear() {
     buffer.Clear();
   }
 
-  public static void Render() {
+  public void Render() {
     batcher.Begin();
     for (var i = 0; i < buffer.Size(); i++) {
       var cell = buffer.GetAt(i);
@@ -110,7 +102,7 @@ public static class Terminal {
     Window.SwapBuffers();
   }
 
-  public static void Set(
+  public void Set(
     int x,
     int y,
     string str,
@@ -122,14 +114,14 @@ public static class Terminal {
     }
   }
 
-  public static void Set(
+  public void Set(
     int x,
     int y,
     char character,
     Color? foreground = null,
     Color? background = null
   ) {
-    var (_, h) = Size();
+    var (_, h) = Size;
     var index = CellIndex(x, y);
     ref var cell = ref buffer.GetOrAdd(index);
     cell.x = x;
@@ -142,14 +134,15 @@ public static class Terminal {
   // Internal methods
   ///////////////////////////
 
-  static void OnResize(int w, int h) {
+  void OnResize(int w, int h) {
     GL.Use(program);
     GL.Set(projection, GL.Ortho(0, w, 0, h, -1, 1));
     buffer.Clear();
+    Size = (w / FONT_CHARACTER_SIZE, h / FONT_CHARACTER_SIZE);
   }
 
-  static int CellIndex(int x, int y) {
-    var (w, _) = Size();
+  int CellIndex(int x, int y) {
+    var (w, _) = Size;
     return w * y + x;
   }
 
