@@ -39,7 +39,7 @@ public static class Terminal {
   ///////////////////////////
 
   static GL.Texture font;
-  static SparseSet<Cell> buffer;
+  static SparseSet<int, Cell> buffer;
   static SpriteBatcher batcher;
   static GL.Program program;
   static GL.Uniform projection;
@@ -52,7 +52,7 @@ public static class Terminal {
     var pixelHeight = FONT_CHARACTER_SIZE * cellHeight;
     Window.Startup(title, pixelWidth, pixelHeight, OnResize);
     font = GL.CreateTexture(Path.Combine(DATA_PATH, FONT_PATH));
-    buffer = SparseSets.New<Cell>();
+    buffer = new SparseSet<int, Cell>(i => i);
     batcher = SpriteBatchers.New();
     program = GL.CreateProgram(
       Path.Combine(DATA_PATH, VERTEX_SHADER_PATH),
@@ -83,8 +83,9 @@ public static class Terminal {
     return Window.FetchInput();
   }
 
-  public static Vec2 Size() {
-    return Window.Size() / FONT_CHARACTER_SIZE;
+  public static (int, int) Size() {
+    var (x, y) = Window.Size();
+    return (x / FONT_CHARACTER_SIZE, y / FONT_CHARACTER_SIZE);
   }
 
   public static void Clear() {
@@ -93,37 +94,20 @@ public static class Terminal {
 
   public static void Render() {
     batcher.Begin();
-    foreach (var c in buffer.data) {
+    for (var i = 0; i < buffer.Size(); i++) {
+      var cell = buffer.GetAt(i);
       batcher.Draw(NewGlyph(
         font,
-        c.x,
-        c.y,
-        c.c,
-        c.fg.color,
-        c.bg.color
+        cell.x,
+        cell.y,
+        cell.c,
+        cell.fg.color,
+        cell.bg.color
       ));
     }
     batcher.End();
     batcher.Render();
     Window.SwapBuffers();
-  }
-
-  public static void Set(
-    Vec2 position,
-    char character,
-    Color? foreground = null,
-    Color? background = null
-  ) {
-    Set(position.x, position.y, character, foreground, background);
-  }
-
-  public static void Set(
-    Vec2 position,
-    string str,
-    Color? foreground = null,
-    Color? background = null
-  ) {
-    Set(position.x, position.y, str, foreground, background);
   }
 
   public static void Set(
@@ -145,13 +129,14 @@ public static class Terminal {
     Color? foreground = null,
     Color? background = null
   ) {
-    buffer.Set(CellIndex(x, y), new Cell {
-      x = x,
-      y = Size().y - 1 - y,
-      c = character,
-      fg = foreground ?? Colors.White,
-      bg = background ?? Colors.Black,
-    });
+    var (_, h) = Size();
+    var index = CellIndex(x, y);
+    ref var cell = ref buffer.GetOrAdd(index);
+    cell.x = x;
+    cell.y = h - 1 - y;
+    cell.c = character;
+    cell.fg = foreground ?? Colors.White;
+    cell.bg = background ?? Colors.Black;
   }
 
   // Internal methods
@@ -164,7 +149,8 @@ public static class Terminal {
   }
 
   static int CellIndex(int x, int y) {
-    return Size().w * y + x;
+    var (w, _) = Size();
+    return w * y + x;
   }
 
   static Sprite NewGlyph(

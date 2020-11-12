@@ -3,81 +3,153 @@ using System.Collections.Generic;
 
 namespace Rendering {
 
-public struct SparseSet<T> {
-  public List<int> forwardLookup;
-  public List<int> reverseLookup;
-  public List<T> data;
-}
+class SparseSet<K, V> where V : new() {
 
-public struct SparseEntry<T> {
-  public int lookupIndex;
-  public int dataIndex;
-}
+  // Constants
+  ///////////////////////////
 
-public static class SparseSets {
+  const int INITIAL_CAPACITY = 4;
 
-  public static SparseSet<T> New<T>() {
-    return new SparseSet<T>{
-      forwardLookup = new List<int>(),
-      reverseLookup = new List<int>(),
-      data = new List<T>(),
-    };
+  static readonly V DEFAULT = new V();
+
+  // Fields
+  ///////////////////////////
+
+  Func<K,int> indexer;
+  Action<int,int> onMoveValue;
+  int[] forwardLookup;
+  int[] reverseLookup;
+  K[] keys;
+  V[] values;
+  int nextValueIndex;
+
+  // Constructors
+  ///////////////////////////
+
+  public SparseSet(Func<K, int> indexer, Action<int, int> onMoveValue = null) {
+    this.indexer = indexer;
+    this.onMoveValue = onMoveValue;
+    forwardLookup = new int[INITIAL_CAPACITY];
+    Array.Fill(forwardLookup, -1);
+    reverseLookup = new int[INITIAL_CAPACITY];
+    Array.Fill(reverseLookup, -1);
+    keys = new K[INITIAL_CAPACITY];
+    values = new V[INITIAL_CAPACITY];
+    nextValueIndex = 0;
   }
 
-  public static SparseEntry<T> Set<T>(this ref SparseSet<T> s, int i, T v) {
-    var dataIndex = default(int);
-    if (s.forwardLookup.Count > i && s.forwardLookup[i] != -1) {
-      dataIndex = s.forwardLookup[i];
-      s.data[dataIndex] = v;
-    } else {
-      dataIndex = s.data.Count;
-      s.data.Add(v);
-      s.reverseLookup.Add(i);
-      while (s.forwardLookup.Count <= i) {
-        s.forwardLookup.Add(-1);
+  // Public methods
+  ///////////////////////////
+
+  public void Clear() {
+    nextValueIndex = 0;
+    Array.Fill(forwardLookup, -1);
+  }
+
+  public ref V Add(K key) {
+    var keyIndex = indexer(key);
+    if (IsValidKeyIndex(keyIndex)) {
+      var valueIndex = forwardLookup[keyIndex];
+      if (IsValidValueIndex(valueIndex)) {
+        throw new ArgumentException("key already present in set", nameof(key));
       }
-      s.forwardLookup[i] = dataIndex;
     }
-    return new SparseEntry<T> {
-      lookupIndex = i,
-      dataIndex = dataIndex,
-    };
+    if (keyIndex >= forwardLookup.Length) {
+      GrowAndFill(ref forwardLookup, keyIndex, -1);
+    }
+    if (nextValueIndex >= values.Length) {
+      GrowAndFill(ref reverseLookup, nextValueIndex, -1);
+      Array.Resize(ref keys, reverseLookup.Length);
+      Array.Resize(ref values, reverseLookup.Length);
+    }
+    keys[nextValueIndex] = key;
+    ref var value = ref values[nextValueIndex];
+    reverseLookup[nextValueIndex] = keyIndex;
+    forwardLookup[keyIndex] = nextValueIndex;
+    nextValueIndex++;
+    if (value == null) {
+      value = new V();
+    }
+    return ref value;
   }
 
-  public static SparseEntry<T>? Lookup<T>(this ref SparseSet<T> s, int i) {
-    if (i >= s.forwardLookup.Count) return null;
-    var dataIndex = s.forwardLookup[i];
-    if (dataIndex == -1) return null;
-    return new SparseEntry<T> {
-      lookupIndex = i,
-      dataIndex = dataIndex,
-    };
+  public void Remove(K key) {
+    var (keyIndex, valueToRemove, ok) = Indices(key);
+    if (!ok) return;
+    if (nextValueIndex != 0) {
+      var valueToSwap = --nextValueIndex;
+      var keyIndexToSwap = reverseLookup[valueToSwap];
+      keys[valueToRemove] = keys[valueToSwap];
+      values[valueToRemove] = values[valueToSwap];
+      if (onMoveValue != null) onMoveValue(valueToSwap, valueToRemove);
+      reverseLookup[valueToRemove] = keyIndexToSwap;
+      forwardLookup[keyIndexToSwap] = valueToRemove;
+      reverseLookup[valueToSwap] = -1;
+    } else {
+      reverseLookup[valueToRemove] = -1;
+    }
+    forwardLookup[keyIndex] = -1;
   }
 
-  public static void Remove<T>(this ref SparseSet<T> s, SparseEntry<T> e) {
-    var lastIndex = s.data.Count - 1;
-    var lastLookupIndex = s.reverseLookup[lastIndex];
-    s.forwardLookup[e.lookupIndex] = -1;
-    s.forwardLookup[lastLookupIndex] = e.dataIndex;
-    s.data[e.dataIndex] = s.data[lastIndex];
-    s.data.RemoveAt(lastIndex);
-    s.reverseLookup.RemoveAt(lastIndex);
+  public bool Has(K key) {
+    var (_, _, ok) = Indices(key);
+    return ok;
   }
 
-  public static void Clear<T>(this ref SparseSet<T> s) {
-    s.forwardLookup.Clear();
-    s.reverseLookup.Clear();
-    s.data.Clear();
+  public ref V Get(K key) {
+    var (_, valueIndex, ok) = Indices(key);
+    if (!ok) throw new KeyNotFoundException();
+    return ref values[valueIndex];
   }
 
-  public static T Get<T>(this ref SparseSet<T> s, SparseEntry<T> e) {
-    return s.data[e.dataIndex];
+  public ref V GetOrAdd(K key) {
+    var (_, valueIndex, ok) = Indices(key);
+    if (ok) return ref values[valueIndex];
+    return ref Add(key);
   }
 
-  public static T? Get<T>(this ref SparseSet<T> s, int e) where T : struct {
-    var instance = s.Lookup(e);
-    if (!instance.HasValue) return null;
-    return s.Get(instance.Value);
+  public int Size() {
+    return nextValueIndex;
+  }
+
+  public K At(int index) {
+    if (!IsValidValueIndex(index)) throw new IndexOutOfRangeException();
+    return keys[index];
+  }
+
+  public ref V GetAt(int index) {
+    return ref Get(At(index));
+  }
+
+  // Internal methods
+  ///////////////////////////
+
+  (int, int, bool) Indices(K key) {
+    var keyIndex = indexer(key);
+    if (!IsValidKeyIndex(keyIndex)) return (-1, -1, false);
+    var valueIndex = forwardLookup[keyIndex];
+    if (!IsValidValueIndex(valueIndex)) return (-1, -1, false);
+    return (keyIndex, valueIndex, true);
+  }
+
+  bool IsValidKeyIndex(int index) {
+    if (index < 0) return false;
+    if (index >= forwardLookup.Length) return false;
+    return true;
+  }
+
+  bool IsValidValueIndex(int index) {
+    if (index < 0) return false;
+    if (index > nextValueIndex) return false;
+    return true;
+  }
+
+  static void GrowAndFill<T>(ref T[] array, int index, T value) {
+    var oldLength = array.Length;
+    var newSize = array.Length;
+    while (newSize <= index) newSize *= 2;
+    Array.Resize(ref array, newSize);
+    Array.Fill(array, value, oldLength, array.Length - oldLength);
   }
 
 }

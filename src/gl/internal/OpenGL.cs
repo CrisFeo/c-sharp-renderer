@@ -11,7 +11,7 @@ namespace OpenGL
     ///     Returns a function pointer for the OpenGL function with the specified name.
     /// </summary>
     /// <param name="funcName">The name of the function to lookup.</param>
-    public delegate IntPtr GetProcAddressHandler(string funcName);
+    internal delegate IntPtr GetProcAddressHandler(string funcName);
 
     /// <summary>
     ///     Provides bindings for OpenGL 3.3 Core Profile.
@@ -19,7 +19,7 @@ namespace OpenGL
     [System.Diagnostics.CodeAnalysis.SuppressMessage("ReSharper", "InconsistentNaming")]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("ReSharper", "IdentifierTypo")]
     [SuppressUnmanagedCodeSecurity]
-    public static unsafe partial class Gl
+    internal static unsafe partial class Gl
     {
         private static string PtrToStringUtf8(IntPtr ptr)
         {

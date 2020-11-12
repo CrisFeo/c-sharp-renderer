@@ -15,7 +15,7 @@ public static class Window {
 
   static GLFW.Window window;
   static HashSet<Key> input;
-  static Vec2 size;
+  static (int, int) size;
   static Action<int, int> onResize;
 
   // Public methods
@@ -41,7 +41,7 @@ public static class Window {
       GLFW.Window.None
     );
     input = new HashSet<Key>();
-    size = new Vec2(initialWidth, initialHeight);
+    size = (initialWidth, initialHeight);
     onResize = resizeCallback;
     Glfw.MakeContextCurrent(window);
     Glfw.SwapInterval(1);
@@ -53,7 +53,7 @@ public static class Window {
       }
     });
     Glfw.SetWindowSizeCallback(window, (wnd, w, h) => {
-      size = new Vec2(w, h);
+      size = (w, h);
       glViewport(0, 0, w, h);
       onResize(w, h);
     });
@@ -83,7 +83,7 @@ public static class Window {
     return input;
   }
 
-  public static Vec2 Size() {
+  public static (int, int) Size() {
     return size;
   }
 
