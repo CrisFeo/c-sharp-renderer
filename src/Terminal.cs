@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 
 namespace Rendering {
 
@@ -9,10 +10,15 @@ public static class Terminal {
   ///////////////////////////
 
   const int FONT_CHARACTER_SIZE = 12;
-  const string FONT_PATH = "dat/cp437_12x12.png";
-  const string VERTEX_SHADER_PATH = "dat/main.vert";
-  const string FRAGMENT_SHADER_PATH = "dat/main.frag";
+  const string FONT_PATH = "cp437_12x12.png";
+  const string VERTEX_SHADER_PATH = "terminal.vert";
+  const string FRAGMENT_SHADER_PATH = "terminal.frag";
   const string PROJECTION_UNIFORM_NAME = "projection";
+
+  static readonly string DATA_PATH = Path.Combine(
+    Path.GetDirectoryName(System.Reflection.Assembly.GetEntryAssembly().Location),
+    "dat"
+  );
 
   // Internal structs
   ///////////////////////////
@@ -45,10 +51,13 @@ public static class Terminal {
     var pixelWidth = FONT_CHARACTER_SIZE * cellWidth;
     var pixelHeight = FONT_CHARACTER_SIZE * cellHeight;
     Window.Startup(title, pixelWidth, pixelHeight, OnResize);
-    font = GL.CreateTexture(FONT_PATH);
+    font = GL.CreateTexture(Path.Combine(DATA_PATH, FONT_PATH));
     buffer = SparseSets.New<Cell>();
     batcher = SpriteBatchers.New();
-    program = GL.CreateProgram(VERTEX_SHADER_PATH, FRAGMENT_SHADER_PATH);
+    program = GL.CreateProgram(
+      Path.Combine(DATA_PATH, VERTEX_SHADER_PATH),
+      Path.Combine(DATA_PATH, FRAGMENT_SHADER_PATH)
+    );
     projection = GL.CreateUniform(program, PROJECTION_UNIFORM_NAME);
     OnResize(pixelWidth, pixelHeight);
   }
