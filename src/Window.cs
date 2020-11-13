@@ -21,7 +21,7 @@ static class Window {
   // Public properites
   ///////////////////////////
 
-  public static HashSet<Key> Input { get; private set; }
+  public static SparseSet<Key, bool> Input { get; private set; }
   public static bool ShouldClose { get; private set; }
 
   // Public methods
@@ -49,15 +49,18 @@ static class Window {
       GLFW.Window.None
     );
     onResize = resizeCallback;
-    Input = new HashSet<Key>();
+    Input = new SparseSet<Key, bool>(k => (int)k);
     ShouldClose = false;
     Glfw.MakeContextCurrent(window);
     Glfw.SwapInterval(1);
     Import(Glfw.GetProcAddress);
     Glfw.SetKeyCallback(window, (wnd, k, sc, s, m) => {
-      switch (s) {
-        case InputState.Press:   Input.Add((Key)k);    break;
-        case InputState.Release: Input.Remove((Key)k); break;
+      var key = (Key)k;
+      if (s == InputState.Press) {
+        ref var isHeld = ref Input.GetOrAdd(key);
+        isHeld = false;
+      } else {
+        Input.Remove(key);
       }
     });
     Glfw.SetWindowSizeCallback(window, (wnd, w, h) => {
@@ -82,6 +85,10 @@ static class Window {
 
   public static void Poll() {
     Debug.Assert(isRunning);
+    for (var i = 0; i < Input.Size(); i++) {
+      ref var isHeld = ref Input.GetAt(i);
+      isHeld = true;
+    }
     Glfw.PollEvents();
     ShouldClose = Glfw.WindowShouldClose(window);
   }

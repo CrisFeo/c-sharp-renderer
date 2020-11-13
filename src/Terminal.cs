@@ -47,7 +47,6 @@ public class Terminal : IDisposable {
   // Public properties
   ///////////////////////////
 
-  public HashSet<Key> Input { get => Window.Input; }
   public bool ShouldClose { get => Window.ShouldClose; }
   public (int, int) Size { get; private set; }
 
@@ -78,6 +77,14 @@ public class Terminal : IDisposable {
 
   public void Poll() {
     Window.Poll();
+  }
+
+  public bool KeyPress(Key k) {
+    return Window.Input.Has(k);
+  }
+
+  public bool KeyDown(Key k) {
+    return Window.Input.Has(k) && !Window.Input.Get(k);
   }
 
   public void Clear() {
