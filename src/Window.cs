@@ -17,12 +17,14 @@ static class Window {
   static bool isRunning;
   static GLFW.Window window;
   static Action<int, int> onResize;
+  static Action<float, float> onMousePosition;
+  static Action<Key> onKeyDown;
 
   // Public properites
   ///////////////////////////
 
-  public static SparseSet<Key, bool> Input { get; private set; }
   public static bool ShouldClose { get; private set; }
+  public static SparseSet<Key, bool> Input { get; private set; }
 
   // Public methods
   ///////////////////////////
@@ -31,7 +33,9 @@ static class Window {
     string title,
     int initialWidth,
     int initialHeight,
-    Action<int, int> resizeCallback
+    Action<int, int> resizeCallback,
+    Action<float, float> mousePositionCallback,
+    Action<Key> keyDownCallback
   ) {
     Debug.Assert(!isRunning);
     isRunning = true;
@@ -54,18 +58,28 @@ static class Window {
     Glfw.MakeContextCurrent(window);
     Glfw.SwapInterval(1);
     Import(Glfw.GetProcAddress);
+    onMousePosition = mousePositionCallback;
+    Glfw.SetCursorPositionCallback(
+      window,
+      (wnd, x, y) => onMousePosition?.Invoke((float)x, (float)y)
+    );
+    Glfw.SetMouseButtonCallback(window, (wnd, b, s, m) => {
+      var key = default(Key);
+      switch (b) {
+        case MouseButton.Left: key = Key.MouseLeft; break;
+        case MouseButton.Right: key = Key.MouseRight; break;
+        case MouseButton.Middle: key = Key.MouseMiddle; break;
+      }
+      OnKey(key, s);
+    });
+    onKeyDown = keyDownCallback;
     Glfw.SetKeyCallback(window, (wnd, k, sc, s, m) => {
       var key = (Key)k;
-      if (s == InputState.Press) {
-        ref var isHeld = ref Input.GetOrAdd(key);
-        isHeld = false;
-      } else {
-        Input.Remove(key);
-      }
+      OnKey(key, s);
     });
     Glfw.SetWindowSizeCallback(window, (wnd, w, h) => {
       glViewport(0, 0, w, h);
-      onResize(w, h);
+      onResize?.Invoke(w, h);
     });
     glViewport(0, 0, initialWidth, initialHeight);
     glClearColor(0, 0, 0, 1);
@@ -97,6 +111,19 @@ static class Window {
     Debug.Assert(isRunning);
     Glfw.SwapBuffers(window);
     glClear(GL_COLOR_BUFFER_BIT);
+  }
+
+  // Internal vars
+  ////////////////////
+
+  static void OnKey(Key k, InputState s) {
+    if (s == InputState.Press) {
+      ref var isHeld = ref Input.GetOrAdd(k);
+      isHeld = false;
+      onKeyDown?.Invoke(k);
+    } else {
+      Input.Remove(k);
+    }
   }
 
 }

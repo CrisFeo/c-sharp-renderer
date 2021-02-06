@@ -50,13 +50,26 @@ public class Terminal : IDisposable {
   public bool ShouldClose { get => Window.ShouldClose; }
   public (int, int) Size { get; private set; }
 
+  // Events
+  ///////////////////////////
+
+  public event Action<Key> OnKeyDown;
+  public event Action<int, int> OnMouseMove;
+
   // Constructors
   ///////////////////////////
 
   public Terminal(int cellWidth, int cellHeight, string title) {
     var pixelWidth = FONT_CHARACTER_SIZE * cellWidth;
     var pixelHeight = FONT_CHARACTER_SIZE * cellHeight;
-    Window.Startup(title, pixelWidth, pixelHeight, OnResize);
+    Window.Startup(
+      title,
+      pixelWidth,
+      pixelHeight,
+      OnResize,
+      OnMouse,
+      k => OnKeyDown?.Invoke(k)
+    );
     font = GL.CreateTexture(Path.Combine(DATA_PATH, FONT_PATH));
     buffer = new SparseSet<int, Cell>(i => i);
     batcher = SpriteBatchers.New();
@@ -91,24 +104,6 @@ public class Terminal : IDisposable {
     buffer.Clear();
   }
 
-  public void Render() {
-    batcher.Begin();
-    for (var i = 0; i < buffer.Size(); i++) {
-      var cell = buffer.GetAt(i);
-      batcher.Draw(NewGlyph(
-        font,
-        cell.x,
-        cell.y,
-        cell.c,
-        cell.fg.color,
-        cell.bg.color
-      ));
-    }
-    batcher.End();
-    batcher.Render();
-    Window.SwapBuffers();
-  }
-
   public void Set(
     int x,
     int y,
@@ -138,6 +133,24 @@ public class Terminal : IDisposable {
     cell.bg = background ?? Colors.Black;
   }
 
+  public void Render() {
+    batcher.Begin();
+    for (var i = 0; i < buffer.Size(); i++) {
+      var cell = buffer.GetAt(i);
+      batcher.Draw(NewGlyph(
+        font,
+        cell.x,
+        cell.y,
+        cell.c,
+        cell.fg.color,
+        cell.bg.color
+      ));
+    }
+    batcher.End();
+    batcher.Render();
+    Window.SwapBuffers();
+  }
+
   // Internal methods
   ///////////////////////////
 
@@ -146,6 +159,12 @@ public class Terminal : IDisposable {
     GL.Set(projection, GL.Ortho(0, w, 0, h, -1, 1));
     buffer.Clear();
     Size = (w / FONT_CHARACTER_SIZE, h / FONT_CHARACTER_SIZE);
+  }
+
+  void OnMouse(float x, float y) {
+    var cx = (int)Math.Floor(x / FONT_CHARACTER_SIZE);
+    var cy = (int)Math.Floor(y / FONT_CHARACTER_SIZE);
+    OnMouseMove?.Invoke(cx, cy);
   }
 
   int CellIndex(int x, int y) {
