@@ -94,13 +94,13 @@ public static unsafe partial class GL {
     return d;
   }
 
-  public static void Buffer(ref VertexArray vertexArray, List<Vertex> vertices) {
+  public static void Buffer(ref VertexArray vertexArray, Vertex[] vertices, int count) {
     glBindBuffer(GL_ARRAY_BUFFER, vertexArray.vbo);
-    glBufferData(GL_ARRAY_BUFFER, vertices.Count * sizeof(Vertex), IntPtr.Zero, GL_DYNAMIC_DRAW);
-    fixed (Vertex* v = GetVertexArray(vertices)) {
-      glBufferSubData(GL_ARRAY_BUFFER, 0, vertices.Count * sizeof(Vertex), (IntPtr)v);
+    glBufferData(GL_ARRAY_BUFFER, count * sizeof(Vertex), IntPtr.Zero, GL_DYNAMIC_DRAW);
+    fixed (Vertex* v = vertices) {
+      glBufferSubData(GL_ARRAY_BUFFER, 0, count * sizeof(Vertex), (IntPtr)v);
     }
-    vertexArray.count = vertices.Count;
+    vertexArray.count = count;
   }
 
   public static void Bind(VertexArray vertexArray) {
@@ -109,13 +109,6 @@ public static unsafe partial class GL {
 
   public static void DrawArrays(int offset, int count) {
     glDrawArrays(GL_TRIANGLES, offset, count);
-  }
-
-  // Internal methods
-  ///////////////////////////
-
-  static Vertex[] GetVertexArray(List<Vertex> list) {
-    return (Vertex[])VERTEX_LIST_ITEMS_FIELD.GetValue(list);
   }
 
 }

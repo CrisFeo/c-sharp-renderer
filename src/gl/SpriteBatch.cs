@@ -12,32 +12,40 @@ public struct Sprite {
   public GL.Vertex bottomLeft;
 }
 
-public struct Batch {
+internal struct Batch {
   public int offset;
   public int count;
   public GL.Texture texture;
 }
 
 public struct SpriteBatcher {
-  public GL.VertexArray vertexArray;
-  public List<Sprite> sprites;
-  public List<Batch> batches;
-  public List<GL.Vertex> vertices;
+
+  internal GL.VertexArray vertexArray;
+  internal ArrLst<Sprite> sprites;
+  internal ArrLst<Batch> batches;
+  internal ArrLst<GL.Vertex> vertices;
+
+  public static SpriteBatcher New() => new SpriteBatcher{
+    vertexArray = GL.CreateVertexArray(),
+    sprites = ArrLst<Sprite>.New(0),
+    batches = ArrLst<Batch>.New(0),
+    vertices = ArrLst<GL.Vertex>.New(0),
+  };
+
 }
 
-public static class SpriteBatchers {
+public static class SpriteBatcherImpl {
+
+  // Classes
+  ///////////////////////////
+
+  class SpriteByTexture : IComparer<Sprite> {
+    public static readonly SpriteByTexture INSTANCE = new SpriteByTexture();
+    public int Compare(Sprite a, Sprite b) => a.texture.id.CompareTo(b.texture.id);
+  }
 
   // Public methods
   ///////////////////////////
-
-  public static SpriteBatcher New() {
-    return new SpriteBatcher {
-      vertexArray = GL.CreateVertexArray(),
-      sprites = new List<Sprite>(),
-      batches = new List<Batch>(),
-      vertices = new List<GL.Vertex>(),
-    };
-  }
 
   public static void Begin(this ref SpriteBatcher s) {
     s.sprites.Clear();
@@ -49,14 +57,20 @@ public static class SpriteBatchers {
     s.sprites.Add(sprite);
   }
 
-  public static void End(this ref SpriteBatcher s) {
-    s.sprites.Sort((a, b) => a.texture.id.CompareTo(b.texture.id));
-    var spriteEnumerator = s.sprites.GetEnumerator();
-    var current = spriteEnumerator.Current;
+  public static void End(this ref SpriteBatcher s, bool batchByTexture = true) {
+    if (batchByTexture) {
+      Array.Sort(
+        s.sprites.data,
+        0,
+        s.sprites.count,
+        SpriteByTexture.INSTANCE
+      );
+    }
+    var current = default(Sprite);
     var offset = 0;
-    while (spriteEnumerator.MoveNext()) {
+    for (var i = 0; i < s.sprites.count; i++) {
       var previous = current;
-      current = spriteEnumerator.Current;
+      current = s.sprites.At(i);
       if (current.texture != previous.texture) {
         s.batches.Add(new Batch{
           offset = offset,
@@ -64,9 +78,8 @@ public static class SpriteBatchers {
           texture = current.texture,
         });
       } else {
-        var b = s.batches[s.batches.Count-1];
+        ref var b = ref s.batches.At(s.batches.count-1);
         b.count += 6;
-        s.batches[s.batches.Count-1] = b;
       }
       s.vertices.Add(current.topLeft);
       s.vertices.Add(current.bottomLeft);
@@ -76,12 +89,13 @@ public static class SpriteBatchers {
       s.vertices.Add(current.topLeft);
       offset += 6;
     }
-    GL.Buffer(ref s.vertexArray, s.vertices);
+    GL.Buffer(ref s.vertexArray, s.vertices.data, s.vertices.count);
   }
 
   public static void Render(this ref SpriteBatcher s) {
     GL.Bind(s.vertexArray);
-    foreach (var b in s.batches) {
+    for (var i = 0; i < s.batches.count; i++) {
+      var b = s.batches.At(i);
       GL.Bind(b.texture);
       GL.DrawArrays(b.offset, b.count);
     }

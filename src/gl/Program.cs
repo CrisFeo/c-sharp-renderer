@@ -48,6 +48,8 @@ public static unsafe partial class GL {
 
   public static void Use(Program program) {
     glUseProgram(program.id);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   }
 
   // Internal methods

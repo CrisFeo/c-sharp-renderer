@@ -2,12 +2,8 @@ using System;
 
 namespace Rendering {
 
-public struct Color {
-  public GL.Color color;
-  public static bool operator==(Color a, Color b) => a.color == b.color;
-  public static bool operator!=(Color a, Color b) => !(a == b);
-  public override bool Equals(object o) => (o is Color c) ? this == c : false;
-  public override int GetHashCode() => color.GetHashCode();
+public record Color {
+  public GL.Color color { get; init; }
 }
 
 public static class Colors {

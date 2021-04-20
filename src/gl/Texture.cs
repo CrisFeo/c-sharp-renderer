@@ -65,7 +65,7 @@ public static unsafe partial class GL {
   static (byte[], int, int) LoadPng(string path) {
     var png = new PngReader(File.OpenRead(path));
     if (png.ImgInfo.Channels < 4 || png.ImgInfo.BitDepth != 8) {
-      throw new Exception($"Unable to load '{path}' must be 8-bit (was {png.ImgInfo.BitDepth}) with at least 3 channels (was {png.ImgInfo.Channels})");
+      throw new Exception($"Unable to load '{path}' must be 8-bit (was {png.ImgInfo.BitDepth}) with at least 4 channels (was {png.ImgInfo.Channels})");
     }
     var colSize = png.ImgInfo.Channels;
     var rowSize = colSize * png.ImgInfo.Cols;

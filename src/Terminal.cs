@@ -38,6 +38,8 @@ public class Terminal : IDisposable {
   // Internal vars
   ///////////////////////////
 
+  Window window;
+  InputManager input;
   GL.Texture font;
   SparseSet<int, Cell> buffer;
   SpriteBatcher batcher;
@@ -47,7 +49,7 @@ public class Terminal : IDisposable {
   // Public properties
   ///////////////////////////
 
-  public bool ShouldClose { get => Window.ShouldClose; }
+  public bool ShouldClose { get => window.ShouldClose; }
   public (int, int) Size { get; private set; }
 
   // Events
@@ -62,17 +64,18 @@ public class Terminal : IDisposable {
   public Terminal(int cellWidth, int cellHeight, string title) {
     var pixelWidth = FONT_CHARACTER_SIZE * cellWidth;
     var pixelHeight = FONT_CHARACTER_SIZE * cellHeight;
-    Window.Startup(
+    window = new Window(
       title,
       pixelWidth,
-      pixelHeight,
-      OnResize,
-      OnMouse,
-      k => OnKeyDown?.Invoke(k)
+      pixelHeight
     );
+    window.OnResize += OnResize;
+    window.OnKey += OnKey;
+    window.OnMouse += OnMouse;
+    input = new InputManager();
     font = GL.CreateTexture(Path.Combine(DATA_PATH, FONT_PATH));
     buffer = new SparseSet<int, Cell>(i => i);
-    batcher = SpriteBatchers.New();
+    batcher = SpriteBatcher.New();
     program = GL.CreateProgram(
       Path.Combine(DATA_PATH, VERTEX_SHADER_PATH),
       Path.Combine(DATA_PATH, FRAGMENT_SHADER_PATH)
@@ -85,19 +88,19 @@ public class Terminal : IDisposable {
   ///////////////////////////
 
   public void Dispose() {
-    Window.Shutdown();
+    window.Dispose();
   }
 
   public void Poll() {
-    Window.Poll();
+    window.Poll();
   }
 
   public bool KeyPress(Key k) {
-    return Window.Input.Has(k);
+    return input.IsPressed(k);
   }
 
   public bool KeyDown(Key k) {
-    return Window.Input.Has(k) && !Window.Input.Get(k);
+    return input.IsDown(k);
   }
 
   public void Clear() {
@@ -108,8 +111,8 @@ public class Terminal : IDisposable {
     int x,
     int y,
     string str,
-    Color? foreground = null,
-    Color? background = null
+    Color foreground = null,
+    Color background = null
   ) {
     for (var i = 0; i < str.Length; i++) {
       Set(x + i, y, str[i], foreground, background);
@@ -120,8 +123,8 @@ public class Terminal : IDisposable {
     int x,
     int y,
     char character,
-    Color? foreground = null,
-    Color? background = null
+    Color foreground = null,
+    Color background = null
   ) {
     var (_, h) = Size;
     var index = CellIndex(x, y);
@@ -148,7 +151,7 @@ public class Terminal : IDisposable {
     }
     batcher.End();
     batcher.Render();
-    Window.SwapBuffers();
+    window.SwapBuffers();
   }
 
   // Internal methods
@@ -159,6 +162,10 @@ public class Terminal : IDisposable {
     GL.Set(projection, GL.Ortho(0, w, 0, h, -1, 1));
     buffer.Clear();
     Size = (w / FONT_CHARACTER_SIZE, h / FONT_CHARACTER_SIZE);
+  }
+
+  void OnKey(Key key, bool isDown) {
+    if (isDown) OnKeyDown?.Invoke(key);
   }
 
   void OnMouse(float x, float y) {
@@ -172,7 +179,7 @@ public class Terminal : IDisposable {
     return w * y + x;
   }
 
-  static Sprite NewGlyph(
+  Sprite NewGlyph(
     GL.Texture texture,
     float column,
     float row,
